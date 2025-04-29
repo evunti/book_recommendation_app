@@ -265,7 +265,11 @@ function Content() {
 
   const handleGenerateRecommendations = async () => {
     try {
-      await generateRecommendations();
+      if (loggedInUser) {
+        await generateRecommendations({ userId: loggedInUser._id });
+      } else {
+        toast.error("User not logged in");
+      }
       toast.success("Recommendations generated successfully!");
     } catch (error) {
       toast.error("Failed to generate recommendations");
