@@ -77,6 +77,7 @@ function Content() {
   const books = useQuery(api.books.listBooks);
   const recommendations = useQuery(api.books.getRecommendations);
   const addBook = useMutation(api.books.addBook);
+  const removeBook = useMutation(api.books.removeBook);
   const searchBooks = useAction(api.books.searchBooks);
 
   const [newBook, setNewBook] = useState({
@@ -234,6 +235,12 @@ function Content() {
                       </span>
                     ))}
                   </div>
+                  <button
+                    className="mt-2 text-red-500 hover:underline"
+                    onClick={() => void removeBook({ bookId: book._id })}
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>

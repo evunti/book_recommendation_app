@@ -21,10 +21,12 @@ export const addBook = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const genre = args.genre || await ctx.scheduler.runAfter(0, api.books.detectGenre, {
-      title: args.title,
-      author: args.author,
-    });
+    const genre =
+      args.genre ||
+      (await ctx.scheduler.runAfter(0, api.books.detectGenre, {
+        title: args.title,
+        author: args.author,
+      }));
 
     await ctx.db.insert("books", {
       userId,
@@ -32,7 +34,9 @@ export const addBook = mutation({
       genre,
     });
 
-    await ctx.scheduler.runAfter(0, api.books.generateRecommendations, { userId });
+    await ctx.scheduler.runAfter(0, api.books.generateRecommendations, {
+      userId,
+    });
   },
 });
 
@@ -92,7 +96,7 @@ export const listBooks = query({
 
     return await ctx.db
       .query("books")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
   },
 });
@@ -104,7 +108,7 @@ export const getRecommendations = query({
 
     return await ctx.db
       .query("recommendations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", (q) => q.eq("userId", userId))
       .order("desc")
       .take(3);
   },
@@ -113,11 +117,13 @@ export const getRecommendations = query({
 export const generateRecommendations = action({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const books = await ctx.runQuery(api.books.getUserBooks, { userId: args.userId });
+    const books = await ctx.runQuery(api.books.getUserBooks, {
+      userId: args.userId,
+    });
     if (books.length === 0) return;
 
     const prompt = `Based on these books and ratings:
-${books.map((b: Doc<"books">) => `- "${b.title}" by ${b.author} (${b.genre || "Unknown"}) - rated ${b.rating}/5`).join('\n')}
+${books.map((b: Doc<"books">) => `- "${b.title}" by ${b.author} (${b.genre || "Unknown"}) - rated ${b.rating}/5`).join("\n")}
 
 Suggest 3 other books the reader might enjoy. Format as JSON like this:
 {
@@ -152,7 +158,7 @@ export const getUserBooks = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("books")
-      .withIndex("by_user", q => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
   },
 });
@@ -166,5 +172,24 @@ export const saveRecommendation = mutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("recommendations", args);
+  },
+});
+
+export const removeBook = mutation({
+  args: {
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const book = await ctx.db.get(args.bookId);
+    if (!book || book.userId !== userId) {
+      throw new Error(
+        "Book not found or you do not have permission to delete it"
+      );
+    }
+
+    await ctx.db.delete(args.bookId);
   },
 });
