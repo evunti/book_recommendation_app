@@ -47,3 +47,19 @@ body {
 .link-text {
   @apply text-blue-500 hover:underline cursor-pointer font-medium;
 }
+
+.text-yellow-400 {
+  color: #facc15;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.flex {
+  display: flex;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}

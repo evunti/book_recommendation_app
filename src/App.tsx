@@ -1,9 +1,59 @@
-import { Authenticated, Unauthenticated, useQuery, useMutation, useAction } from "convex/react";
+import {
+  Authenticated,
+  Unauthenticated,
+  useQuery,
+  useMutation,
+  useAction,
+} from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
+
+function StarRating({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
+
+  const handleClick = (index: number) => {
+    onChange(index);
+  };
+
+  const handleMouseEnter = (index: number) => {
+    setHoverValue(index);
+  };
+
+  const handleMouseLeave = () => {
+    setHoverValue(null);
+  };
+
+  const renderStar = (index: number) => {
+    const isFilled = hoverValue !== null ? hoverValue >= index : value >= index;
+
+    return (
+      <span
+        key={index}
+        className="cursor-pointer text-yellow-400"
+        onClick={() => handleClick(index)}
+        onMouseEnter={() => handleMouseEnter(index)}
+        onMouseLeave={handleMouseLeave}
+      >
+        {isFilled ? "★" : "☆"}
+      </span>
+    );
+  };
+
+  return (
+    <div className="flex gap-1">
+      {Array.from({ length: 5 }, (_, i) => renderStar(i + 1))}
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -28,14 +78,16 @@ function Content() {
   const recommendations = useQuery(api.books.getRecommendations);
   const addBook = useMutation(api.books.addBook);
   const searchBooks = useAction(api.books.searchBooks);
-  
+
   const [newBook, setNewBook] = useState({
     title: "",
     author: "",
     rating: 5,
   });
 
-  const [suggestions, setSuggestions] = useState<Array<{ title: string; author: string }>>([]);
+  const [suggestions, setSuggestions] = useState<
+    Array<{ title: string; author: string }>
+  >([]);
   const [searchTimeout, setSearchTimeout] = useState<number | null>(null);
 
   useEffect(() => {
@@ -73,8 +125,11 @@ function Content() {
     }
   };
 
-  const handleSuggestionClick = (suggestion: { title: string; author: string }) => {
-    setNewBook(prev => ({
+  const handleSuggestionClick = (suggestion: {
+    title: string;
+    author: string;
+  }) => {
+    setNewBook((prev) => ({
       ...prev,
       title: suggestion.title,
       author: suggestion.author,
@@ -110,7 +165,9 @@ function Content() {
                   type="text"
                   placeholder="Book Title"
                   value={newBook.title}
-                  onChange={e => setNewBook(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setNewBook((prev) => ({ ...prev, title: e.target.value }))
+                  }
                   className="border p-2 rounded w-full"
                   required
                 />
@@ -124,7 +181,9 @@ function Content() {
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
                         <div className="font-medium">{suggestion.title}</div>
-                        <div className="text-sm text-slate-600">by {suggestion.author}</div>
+                        <div className="text-sm text-slate-600">
+                          by {suggestion.author}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -134,19 +193,19 @@ function Content() {
                 type="text"
                 placeholder="Author"
                 value={newBook.author}
-                onChange={e => setNewBook(prev => ({ ...prev, author: e.target.value }))}
+                onChange={(e) =>
+                  setNewBook((prev) => ({ ...prev, author: e.target.value }))
+                }
                 className="border p-2 rounded"
                 required
               />
               <div className="flex items-center gap-2">
                 <label>Rating:</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
+                <StarRating
                   value={newBook.rating}
-                  onChange={e => setNewBook(prev => ({ ...prev, rating: Number(e.target.value) }))}
-                  className="flex-1"
+                  onChange={(value) =>
+                    setNewBook((prev) => ({ ...prev, rating: value }))
+                  }
                 />
                 <span>{newBook.rating}/5</span>
               </div>
@@ -169,7 +228,11 @@ function Content() {
                     by {book.author} • {book.genre || "Detecting genre..."}
                   </p>
                   <div className="mt-2 flex items-center gap-1">
-                    {"★".repeat(book.rating)}{"☆".repeat(5 - book.rating)}
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <span key={i} className="text-yellow-400">
+                        {book.rating >= i + 1 ? "★" : "☆"}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}
