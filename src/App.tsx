@@ -6,10 +6,20 @@ import {
   useAction,
 } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { SignInForm } from "./SignInForm";
+import { Id } from "../convex/_generated/dataModel";
 import { SignOutButton } from "./SignOutButton";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
+import { Dialog } from "@headlessui/react";
+import { SignInForm } from "./SignInForm";
+
+type Book = {
+  _id: string;
+  title: string;
+  author: string;
+  rating: number;
+  genre?: string;
+};
 
 function StarRating({
   value,
@@ -55,6 +65,94 @@ function StarRating({
   );
 }
 
+function EditBookModal({
+  isOpen,
+  onClose,
+  book,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  book: { _id: Id<"books">; title: string; author: string; rating: number };
+  onSave: (updatedBook: {
+    title: string;
+    author: string;
+    rating: number;
+  }) => void;
+}) {
+  const [updatedBook, setUpdatedBook] = useState({
+    title: book.title,
+    author: book.author,
+    rating: book.rating,
+  });
+
+  return (
+    <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-10">
+      <div className="fixed inset-0 bg-black bg-opacity-25" />
+      <div className="flex items-center justify-center min-h-screen">
+        <Dialog.Panel className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+          <Dialog.Title className="text-lg font-semibold">
+            Edit Book
+          </Dialog.Title>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSave(updatedBook);
+            }}
+            className="flex flex-col gap-4 mt-4"
+          >
+            <input
+              type="text"
+              value={updatedBook.title}
+              onChange={(e) =>
+                setUpdatedBook((prev) => ({ ...prev, title: e.target.value }))
+              }
+              className="border p-2 rounded w-full"
+              placeholder="Book Title"
+              required
+            />
+            <input
+              type="text"
+              value={updatedBook.author}
+              onChange={(e) =>
+                setUpdatedBook((prev) => ({ ...prev, author: e.target.value }))
+              }
+              className="border p-2 rounded w-full"
+              placeholder="Author"
+              required
+            />
+            <div className="flex items-center gap-2">
+              <label>Rating:</label>
+              <StarRating
+                value={updatedBook.rating}
+                onChange={(value) =>
+                  setUpdatedBook((prev) => ({ ...prev, rating: value }))
+                }
+              />
+              <span>{updatedBook.rating}/5</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-indigo-500 text-white py-2 px-4 rounded hover:bg-indigo-600"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+}
+
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -79,6 +177,14 @@ function Content() {
   const addBook = useMutation(api.books.addBook);
   const removeBook = useMutation(api.books.removeBook);
   const searchBooks = useAction(api.books.searchBooks);
+  const updateBook = useMutation(api.books.updateBook);
+  const generateRecommendations = useAction(api.books.generateRecommendations);
+  const [editingBook, setEditingBook] = useState<{
+    _id: Id<"books">;
+    title: string;
+    author: string;
+    rating: number;
+  } | null>(null);
 
   const [newBook, setNewBook] = useState({
     title: "",
@@ -136,6 +242,34 @@ function Content() {
       author: suggestion.author,
     }));
     setSuggestions([]);
+  };
+
+  const handleEditSave = async (updatedBook: {
+    title: string;
+    author: string;
+    rating: number;
+  }) => {
+    if (!editingBook) return; // Ensure editingBook is not null
+
+    try {
+      await updateBook({
+        bookId: editingBook._id as Id<"books">,
+        ...updatedBook,
+      });
+      setEditingBook(null);
+      toast.success("Book updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update book");
+    }
+  };
+
+  const handleGenerateRecommendations = async () => {
+    try {
+      await generateRecommendations();
+      toast.success("Recommendations generated successfully!");
+    } catch (error) {
+      toast.error("Failed to generate recommendations");
+    }
   };
 
   return (
@@ -235,15 +369,29 @@ function Content() {
                       </span>
                     ))}
                   </div>
-                  <button
-                    className="mt-2 text-red-500 hover:underline"
-                    onClick={() => void removeBook({ bookId: book._id })}
-                  >
-                    Remove
-                  </button>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      className="text-blue-500 hover:underline"
+                      onClick={() => setEditingBook(book)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="text-red-500 hover:underline"
+                      onClick={() => void removeBook({ bookId: book._id })}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+            <button
+              className="mt-4 bg-indigo-500 text-white py-2 px-4 rounded hover:bg-indigo-600"
+              onClick={handleGenerateRecommendations}
+            >
+              Generate Recommendations
+            </button>
           </div>
         </div>
 
@@ -259,6 +407,14 @@ function Content() {
           </div>
         </div>
       </Authenticated>
+      {editingBook && (
+        <EditBookModal
+          isOpen={!!editingBook}
+          onClose={() => setEditingBook(null)}
+          book={editingBook}
+          onSave={handleEditSave}
+        />
+      )}
     </div>
   );
 }

@@ -193,3 +193,29 @@ export const removeBook = mutation({
     await ctx.db.delete(args.bookId);
   },
 });
+
+export const updateBook = mutation({
+  args: {
+    bookId: v.id("books"),
+    title: v.string(),
+    author: v.string(),
+    rating: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const book = await ctx.db.get(args.bookId);
+    if (!book || book.userId !== userId) {
+      throw new Error(
+        "Book not found or you do not have permission to edit it"
+      );
+    }
+
+    await ctx.db.patch(args.bookId, {
+      title: args.title,
+      author: args.author,
+      rating: args.rating,
+    });
+  },
+});
